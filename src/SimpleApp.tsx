@@ -114,6 +114,8 @@ export const SimpleApp: React.FC = () => {
     language: recognitionLang,
     groqApiKey,
     onResult: (res, isFinal) => {
+      // Live text typing: user sees what they speak in the input box immediately!
+      setTextInput(res);
       if (isFinal && res.trim()) {
         handleUserSpeech(res);
       }
@@ -236,28 +238,45 @@ export const SimpleApp: React.FC = () => {
       return;
     }
 
-    // 8. Remember Mode query (Past date)
-    if (
+    // 8. Remember Mode Query (Today, Yesterday, or specific past date)
+    const isMemoryQuery = 
       mode === 'remember' || 
-      lower.includes('kya kiya tha') || 
-      lower.includes('क्या किया था') || 
+      lower.includes('kya kiya') || 
+      lower.includes('क्या किया') || 
+      lower.includes('kya tha') || 
+      lower.includes('क्या था') || 
+      lower.includes('what did i do') || 
+      lower.includes('kaam batao') ||
+      lower.includes('काम बताओ') ||
+      lower.includes('hisaab') ||
+      lower.includes('हिसाब') ||
       lower.includes('tarikh') || 
       lower.includes('तारीख') || 
-      (lower.includes('kal') && lower.includes('kya'))
-    ) {
+      (lower.includes('kal') && (lower.includes('kya') || lower.includes('kaam') || lower.includes('batao'))) ||
+      (lower.includes('aaj') && (lower.includes('kya') || lower.includes('kaam') || lower.includes('batao') || lower.includes('read')));
+
+    if (isMemoryQuery) {
       let targetDate = selectedDate;
-      if (lower.includes('kal') || lower.includes('कल') || lower.includes('yesterday')) {
+      if (lower.includes('aaj') || lower.includes('आज') || lower.includes('today')) {
+        targetDate = '2026-11-03';
+        setSelectedDate('2026-11-03');
+        setActiveDateTab('today');
+      } else if (lower.includes('kal') || lower.includes('कल') || lower.includes('yesterday')) {
         targetDate = '2026-11-02';
         setSelectedDate('2026-11-02');
+        setActiveDateTab('yesterday');
       } else if (lower.includes('3 november') || lower.includes('nov 3') || lower.includes('3 nov') || lower.includes('3 नवंबर')) {
         targetDate = '2026-11-03';
         setSelectedDate('2026-11-03');
-      } else if (lower.includes('2 november') || lower.includes('nov 2') || lower.includes('2 नवंबर')) {
+        setActiveDateTab('today');
+      } else if (lower.includes('2 november') || lower.includes('nov 2') || lower.includes('2 november') || lower.includes('2 nov') || lower.includes('2 नवंबर')) {
         targetDate = '2026-11-02';
         setSelectedDate('2026-11-02');
-      } else if (lower.includes('1 november') || lower.includes('nov 1') || lower.includes('1 नवंबर')) {
+        setActiveDateTab('yesterday');
+      } else if (lower.includes('1 november') || lower.includes('nov 1') || lower.includes('1 nov') || lower.includes('1 नवंबर')) {
         targetDate = '2026-11-01';
         setSelectedDate('2026-11-01');
+        setActiveDateTab('all');
       }
 
       const res = await askDateMemory(targetDate);
@@ -268,6 +287,13 @@ export const SimpleApp: React.FC = () => {
     // 9. Hear Me Mode: User shares activity (e.g. "Maine 9 baje 5 Java questions solve kiye" or "Kal maine 5 baje...")
     const result = await addActivity(speechText);
     setAiLastSpeech(result.aiSpeech);
+
+    // Immediately focus view on the date that was just updated!
+    if (result.targetDate === '2026-11-03' || result.targetDate.includes('11-03')) {
+      setActiveDateTab('today');
+    } else if (result.targetDate === '2026-11-02' || result.targetDate.includes('11-02')) {
+      setActiveDateTab('yesterday');
+    }
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -630,6 +656,9 @@ export const SimpleApp: React.FC = () => {
                         key={d.date}
                         onClick={async () => {
                           setSelectedDate(d.date);
+                          if (d.date === '2026-11-03') setActiveDateTab('today');
+                          else if (d.date === '2026-11-02') setActiveDateTab('yesterday');
+                          else setActiveDateTab('all');
                           const res = await askDateMemory(d.date);
                           setAiLastSpeech(res.speech);
                         }}

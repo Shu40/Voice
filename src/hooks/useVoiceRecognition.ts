@@ -11,7 +11,7 @@ export interface UseVoiceRecognitionOptions {
 
 export function useVoiceRecognition(options: UseVoiceRecognitionOptions = {}) {
   const {
-    language = 'hi-IN',
+    language = 'en-US',
     continuous = false,
     groqApiKey = '',
     onResult,
@@ -31,7 +31,17 @@ export function useVoiceRecognition(options: UseVoiceRecognitionOptions = {}) {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const audioAnimationRef = useRef<number | null>(null);
-  const gotFinalTranscriptRef = useRef(false);
+  
+  // Track speech reliably so nothing is ever dropped
+  const latestSpeechTextRef = useRef<string>('');
+  const hasEmittedFinalRef = useRef<boolean>(false);
+
+  // Stable references for callbacks to prevent WebSpeech re-init on parent state updates
+  const onResultRef = useRef(onResult);
+  onResultRef.current = onResult;
+
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
 
   // Initialize Web Speech Recognition
   useEffect(() => {
@@ -42,7 +52,7 @@ export function useVoiceRecognition(options: UseVoiceRecognitionOptions = {}) {
       (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      setIsSupported(true); // Still supported via MediaRecorder + Whisper backend!
+      setIsSupported(true);
       return;
     }
 
@@ -57,7 +67,7 @@ export function useVoiceRecognition(options: UseVoiceRecognitionOptions = {}) {
         let interim = '';
         let final = '';
 
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
+        for (let i = 0; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
             final += event.results[i][0].transcript;
           } else {
@@ -65,47 +75,53 @@ export function useVoiceRecognition(options: UseVoiceRecognitionOptions = {}) {
           }
         }
 
-        if (interim) {
-          setInterimTranscript(interim);
-          onResult?.(interim, false);
+        const combined = (final || interim).trim();
+        if (combined) {
+          latestSpeechTextRef.current = combined;
+          setInterimTranscript(combined);
+          onResultRef.current?.(combined, false); // Real-time preview typing
         }
 
-        if (final) {
-          gotFinalTranscriptRef.current = true;
-          setTranscript(final);
+        if (final && final.trim()) {
+          hasEmittedFinalRef.current = true;
+          setTranscript(final.trim());
           setInterimTranscript('');
-          onResult?.(final, true);
+          onResultRef.current?.(final.trim(), true);
         }
       };
 
       recognition.onerror = (event: any) => {
-        // Prevent alarming the user on network glitch
         if (event.error === 'network') {
-          console.info('WebSpeech network glitch detected; MediaRecorder audio will be transcribed via Whisper backend.');
+          console.info('WebSpeech network event; will use captured speech or backend fallback.');
           setError(null);
           return;
         }
 
         if (event.error === 'not-allowed') {
-          setError('Microphone permission denied. Please allow microphone access.');
-          onError?.('Microphone permission denied.');
+          setError('Microphone permission denied. Please allow microphone access in browser.');
+          onErrorRef.current?.('Microphone permission denied.');
         } else if (event.error === 'no-speech') {
-          // Normal silence, don't show red error
           setError(null);
         }
       };
 
       recognition.onend = () => {
-        // Recognition ended
-        if (!mediaRecorderRef.current || mediaRecorderRef.current.state === 'inactive') {
-          setIsListening(false);
-          stopAudioWave();
+        // If recognition ended naturally and we have text that hasn't been emitted as final
+        if (latestSpeechTextRef.current.trim() && !hasEmittedFinalRef.current) {
+          const text = latestSpeechTextRef.current.trim();
+          hasEmittedFinalRef.current = true;
+          setTranscript(text);
+          setInterimTranscript('');
+          onResultRef.current?.(text, true);
         }
+
+        setIsListening(false);
+        stopAudioWave();
       };
 
       recognitionRef.current = recognition;
     } catch (e) {
-      console.warn('SpeechRecognition init error:', e);
+      console.warn('SpeechRecognition init warning:', e);
     }
 
     return () => {
@@ -116,7 +132,7 @@ export function useVoiceRecognition(options: UseVoiceRecognitionOptions = {}) {
       }
       stopAudioWave();
     };
-  }, [language, continuous, onResult, onError]);
+  }, [language, continuous]);
 
   // Audio wave animation
   const startAudioWave = () => {
@@ -137,15 +153,30 @@ export function useVoiceRecognition(options: UseVoiceRecognitionOptions = {}) {
     setAudioLevel(0);
   };
 
-  // Start listening (Dual Engine: Web Speech + MediaRecorder for Backend Whisper)
+  // Start listening (Dual-Engine: Captures Web Speech & optional MediaRecorder)
   const startListening = useCallback(async () => {
     setError(null);
     setTranscript('');
     setInterimTranscript('');
-    gotFinalTranscriptRef.current = false;
+    latestSpeechTextRef.current = '';
+    hasEmittedFinalRef.current = false;
     audioChunksRef.current = [];
 
-    // 1. Start HTML5 MediaRecorder (Cross-platform: Windows + Android + iOS)
+    // 1. Start Web Speech recognition
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.start();
+      } catch (e: any) {
+        if (e.name === 'InvalidStateError') {
+          try {
+            recognitionRef.current.stop();
+            setTimeout(() => recognitionRef.current?.start(), 80);
+          } catch {}
+        }
+      }
+    }
+
+    // 2. Start HTML5 MediaRecorder in background
     try {
       if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -166,76 +197,75 @@ export function useVoiceRecognition(options: UseVoiceRecognitionOptions = {}) {
           }
         };
 
-        recorder.start(250); // Record in 250ms chunks
+        recorder.start(250);
       }
     } catch (mediaErr) {
-      console.warn('MediaRecorder permission or device error:', mediaErr);
-    }
-
-    // 2. Start Web Speech recognition for live interim typing
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.start();
-      } catch (e: any) {
-        if (e.name === 'InvalidStateError') {
-          try {
-            recognitionRef.current.stop();
-            setTimeout(() => recognitionRef.current?.start(), 100);
-          } catch {}
-        }
-      }
+      // Audio capture fallback handled gracefully
     }
 
     setIsListening(true);
     startAudioWave();
   }, []);
 
-  // Stop listening and auto-fallback to Whisper backend if Web Speech failed or was empty
+  // Stop listening and deliver the captured speech immediately
   const stopListening = useCallback(() => {
     setIsListening(false);
     stopAudioWave();
 
-    // Stop Web Speech
+    // 1. If Web Speech captured words, USE THEM IMMEDIATELY! (Zero lag, zero failure)
+    const spokenText = latestSpeechTextRef.current.trim();
+    if (spokenText && !hasEmittedFinalRef.current) {
+      hasEmittedFinalRef.current = true;
+      setTranscript(spokenText);
+      setInterimTranscript('');
+      onResultRef.current?.(spokenText, true);
+
+      // Clean up tracks
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(t => t.stop());
+        mediaStreamRef.current = null;
+      }
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch {}
+      }
+      return;
+    }
+
+    // 2. Stop Web Speech
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
       } catch {}
     }
 
-    // Stop MediaRecorder & process audio if needed
+    // 3. If Web Speech had no text AND user configured Groq Whisper, use backend
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.onstop = async () => {
-        // Clean up tracks
         if (mediaStreamRef.current) {
           mediaStreamRef.current.getTracks().forEach(t => t.stop());
           mediaStreamRef.current = null;
         }
 
-        // If Web Speech already got the transcript, we're done!
-        if (gotFinalTranscriptRef.current) {
-          audioChunksRef.current = [];
-          return;
-        }
-
-        // Otherwise, send recorded audio blob to Backend Whisper (/api/transcribe)
-        if (audioChunksRef.current.length > 0) {
+        // Only call backend Whisper if no text was captured locally AND Groq API key is present!
+        if (!hasEmittedFinalRef.current && !latestSpeechTextRef.current.trim() && groqApiKey.trim() && audioChunksRef.current.length > 0) {
           const mime = mediaRecorderRef.current?.mimeType || 'audio/webm';
           const audioBlob = new Blob(audioChunksRef.current, { type: mime });
           audioChunksRef.current = [];
 
-          if (audioBlob.size > 2000) { // More than 2KB audio
+          if (audioBlob.size > 2000) {
             setIsProcessingBackend(true);
-            setInterimTranscript('AI से आवाज़ समझ रहा हूँ...');
+            setInterimTranscript('Processing audio...');
 
-            const langMode = language.startsWith('hi') ? 'hi' : language.startsWith('en') ? 'en' : 'hi';
+            const langMode = language.startsWith('hi') ? 'hi' : 'en';
             const whisperText = await callBackendTranscribe(audioBlob, langMode, groqApiKey);
 
             setIsProcessingBackend(false);
             setInterimTranscript('');
 
             if (whisperText && whisperText.trim()) {
+              hasEmittedFinalRef.current = true;
               setTranscript(whisperText);
-              onResult?.(whisperText, true);
+              onResultRef.current?.(whisperText, true);
             }
           }
         }
@@ -245,11 +275,13 @@ export function useVoiceRecognition(options: UseVoiceRecognitionOptions = {}) {
         mediaRecorderRef.current.stop();
       } catch {}
     }
-  }, [language, groqApiKey, onResult]);
+  }, [language, groqApiKey]);
 
   const resetTranscript = useCallback(() => {
     setTranscript('');
     setInterimTranscript('');
+    latestSpeechTextRef.current = '';
+    hasEmittedFinalRef.current = false;
     setError(null);
   }, []);
 

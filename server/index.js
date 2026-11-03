@@ -133,9 +133,9 @@ app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
     }
 
     if (!groqKey) {
-      return res.status(400).json({ 
-        error: 'Groq API Key is not configured on server or in headers.', 
-        fallbackRequired: true 
+      return res.json({ 
+        text: '',
+        message: 'Groq API Key not configured; local browser speech used.' 
       });
     }
 

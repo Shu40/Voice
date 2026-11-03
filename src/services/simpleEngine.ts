@@ -320,35 +320,70 @@ export function retrieveDateActivities(
   lang: LanguageMode = 'hi'
 ): { speech: string; records: ActivityRecord[] } {
   const matches = allRecords.filter(r => r.date === targetDate);
+  const todayStr = getTodayDateISO();
+  const yesterdayStr = getYesterdayDateISO();
+  const isToday = targetDate === todayStr;
+  const isYesterday = targetDate === yesterdayStr;
 
   if (matches.length === 0) {
     if (lang === 'hi') {
-      return {
-        speech: `मैंने चेक किया, ${targetDate} का कोई रिकॉर्ड सेव नहीं है। आप बताइए आपने क्या किया था, मैं अभी लिख लूँगी!`,
-        records: []
-      };
+      const msg = isToday
+        ? 'आज अभी तक आपने कोई नया काम रिकॉर्ड नहीं किया है। बोलिए: "मैंने 10 बजे कोडिंग की", मैं तुरंत लिख लूँगी!'
+        : isYesterday
+        ? 'कल का कोई रिकॉर्ड नहीं मिला। बताइए आपने क्या किया था, मैं अभी जोड़ दूँगी!'
+        : `मैंने चेक किया, ${targetDate} का कोई रिकॉर्ड सेव नहीं है। आप बताइए आपने क्या किया था, मैं अभी लिख लूँगी!`;
+      return { speech: msg, records: [] };
     }
     if (lang === 'en') {
-      return {
-        speech: `I checked the records. No activities saved for ${targetDate}. Tell me what you did and I'll save it!`,
-        records: []
-      };
+      const msg = isToday
+        ? 'You have not recorded any activities for today yet. Say: "I coded at 10 AM", and I will save it!'
+        : isYesterday
+        ? 'No activities found for yesterday. Tell me what you did and I will log it!'
+        : `I checked the records. No activities saved for ${targetDate}. Tell me what you did and I will save it!`;
+      return { speech: msg, records: [] };
     }
-    return {
-      speech: `Maine check kiya, ${targetDate} ko aapne koi record save nahi kiya tha. Aap bataiye kya kiya tha, main save kar leti hu!`,
-      records: []
-    };
+    const msg = isToday
+      ? 'Aaj abhi tak koi kaam save nahi hua hai. Boliye: "Maine 10 baje coding ki", main turant save kar lungi!'
+      : isYesterday
+      ? 'Kal ka koi record nahi mila. Bataiye kal kya kiya tha, main save kar leti hu!'
+      : `Maine check kiya, ${targetDate} ko aapne koi record save nahi kiya tha. Aap bataiye kya kiya tha, main save kar leti hu!`;
+    return { speech: msg, records: [] };
   }
 
-  const listText = matches.map(m => `${m.time} baje: ${m.description}`).join(', ');
+  let listText = '';
+  if (lang === 'hi') {
+    listText = matches.map(m => `${m.time} बजे: ${m.description}`).join(', ');
+  } else if (lang === 'en') {
+    listText = matches.map(m => `${m.time}: ${m.description}`).join(', ');
+  } else {
+    listText = matches.map(m => `${m.time} baje: ${m.description}`).join(', ');
+  }
 
   let speech = "";
   if (lang === 'hi') {
-    speech = `${targetDate} को आपने यह काम किए थे: ${listText}।`;
+    if (isToday) {
+      speech = `आज आपने ये काम किए हैं: ${listText}।`;
+    } else if (isYesterday) {
+      speech = `कल आपने ये काम किए थे: ${listText}।`;
+    } else {
+      speech = `${targetDate} को आपने यह काम किए थे: ${listText}।`;
+    }
   } else if (lang === 'en') {
-    speech = `On ${targetDate}, you logged: ${listText}.`;
+    if (isToday) {
+      speech = `Today you have logged: ${listText}.`;
+    } else if (isYesterday) {
+      speech = `Yesterday you logged: ${listText}.`;
+    } else {
+      speech = `On ${targetDate}, you logged: ${listText}.`;
+    }
   } else {
-    speech = `Aapne ${targetDate} ko yeh kaam kiye the: ${listText}.`;
+    if (isToday) {
+      speech = `Aaj aapne yeh kaam kiye hain: ${listText}.`;
+    } else if (isYesterday) {
+      speech = `Kal aapne yeh kaam kiye the: ${listText}.`;
+    } else {
+      speech = `Aapne ${targetDate} ko yeh kaam kiye the: ${listText}.`;
+    }
   }
 
   return { speech, records: matches };
