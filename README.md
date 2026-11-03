@@ -19,7 +19,7 @@
 * **Hybrid Intelligent Processing:**
   * Fast zero-latency local rule parser handles standard memory extraction, daily audits, and routine checklists with 100% uptime and 0 token cost.
   * Server-side **Groq Llama-3.3-70B** is engaged on-demand for nuanced conversational queries without exposing API credentials to the browser client.
-* **1-Click Interactive HR & Hackathon Presentation Bar:** Preloaded with 3 days of rich historical memories (Coding, Study, Fitness, Expenses, Meetings) and 1-click evaluation buttons.
+* **1-Click Interactive Demo Showcase Bar:** Preloaded with 3 days of rich historical memories (Coding, Study, Fitness, Expenses, Meetings) and 1-click evaluation buttons.
 * **Full-Width Windows & Mobile Responsive UI:** Dynamic 2-column layout on wide desktop screens (eliminating empty side borders) that gracefully collapses into a thumb-friendly single-column layout on smartphones.
 
 ---

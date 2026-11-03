@@ -469,7 +469,7 @@ export const SimpleApp: React.FC = () => {
 
       {/* 2. BODY CONTENT (Optimized Full-Width Windows + Mobile Responsive) */}
       <main className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-5 space-y-4 flex-1">
-        {/* HR & Hackathon Presentation Tour Bar */}
+        {/* Demo Showcase Tour Bar */}
         <DemoShowcaseBar />
 
         {/* Morning Greeting & Late Wakeup Ribbon */}

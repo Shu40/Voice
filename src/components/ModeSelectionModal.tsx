@@ -110,24 +110,24 @@ export const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({ isOpen, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#070B14]/90 backdrop-blur-md overflow-y-auto animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[#070B14]/90 backdrop-blur-md overflow-y-auto animate-fade-in">
       <div 
-        className="w-full max-w-xl rounded-3xl bg-[#0D1527] border border-purple-500/30 p-6 sm:p-8 shadow-2xl relative my-auto"
+        className="w-full max-w-xl max-h-[92vh] overflow-y-auto rounded-3xl bg-[#0D1527] border border-purple-500/30 p-5 sm:p-8 shadow-2xl relative my-auto scrollbar-thin"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Header Branding */}
-        <div className="text-center space-y-2 pb-5 border-b border-slate-800/80">
+        <div className="text-center space-y-1.5 sm:space-y-2 pb-4 sm:pb-5 border-b border-slate-800/80">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-950/80 border border-purple-600/40 text-purple-300 text-xs font-semibold">
             <Sparkles size={14} className="text-cyan-300" />
             <span>YaadBuddy AI (याद दोस्त)</span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight font-display">
+          <h2 className="text-lg sm:text-2xl font-extrabold text-white tracking-tight font-display">
             {step === 'choose' && 'Choose Your Mode / मोड चुनें'}
             {step === 'register' && 'Personal Profile Setup (Real Mode)'}
-            {step === 'demo_confirm' && 'HR & Presentation Demo Mode'}
+            {step === 'demo_confirm' && 'Demo Showcase Mode'}
           </h2>
           <p className="text-xs text-slate-400 max-w-md mx-auto">
-            {step === 'choose' && 'Select whether you want to use your private memory assistant or test the preloaded HR demo showcase.'}
+            {step === 'choose' && 'Select whether you want to use your private memory assistant or test the preloaded interactive demo showcase.'}
             {step === 'register' && 'Enter your details below to activate your personal memory assistant.'}
             {step === 'demo_confirm' && 'Experience the full 3-day history of coding, workouts, expenses, and strict coach audits.'}
           </p>
@@ -197,7 +197,7 @@ export const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({ isOpen, 
                       <Award size={20} />
                     </div>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-950 text-purple-300 border border-purple-800">
-                      ⭐ HR & Hackathon
+                      ⭐ Interactive Showcase
                     </span>
                   </div>
 
@@ -347,7 +347,7 @@ export const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({ isOpen, 
             <div className="p-4 rounded-2xl bg-purple-950/40 border border-purple-500/30 text-xs text-slate-300 space-y-2">
               <div className="flex items-center gap-2 text-cyan-300 font-bold">
                 <Award size={16} />
-                <span>HR & Presentation Showcase Ready</span>
+                <span>Demo Showcase Ready</span>
               </div>
               <p className="text-[11px] text-slate-400 leading-relaxed">
                 You will enter with 3 full days of historical records (Nov 1-3). You can test the 6:00 AM wakeup loop, 10 PM night routine, habit analysis, and date queries instantly.
@@ -357,7 +357,7 @@ export const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({ isOpen, 
             <div className="space-y-1">
               <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
                 <User size={13} className="text-cyan-400" />
-                <span>Candidate / Evaluator Name:</span>
+                <span>Your Name (नाम):</span>
               </label>
               <input
                 type="text"
@@ -368,7 +368,7 @@ export const ModeSelectionModal: React.FC<ModeSelectionModalProps> = ({ isOpen, 
                 required
               />
               <span className="text-[10px] text-slate-500">
-                Default is "Shubham", but you can type your own name for the demonstration.
+                Default is "Shubham", but you can enter any name for the demo tour.
               </span>
             </div>
 
